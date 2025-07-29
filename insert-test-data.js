@@ -85,8 +85,9 @@ async function insertTestData() {
     console.log("🎉 All test data inserted successfully!");
   } catch (error) {
     console.error("❌ Error inserting test data:", error.message);
+    hasError = true;
   } finally {
-    process.exit();
+    process.exit(hasError ? 1 : 0);
   }
 }
 
