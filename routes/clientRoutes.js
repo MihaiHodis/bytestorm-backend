@@ -1,9 +1,5 @@
 import express from "express";
-import {
-  getAllClients,
-  getClientById,
-  createClient,
-} from "../controllers/clientsController.js";
+import { getAllClients, getClientById, createClient } from "../controllers/clientController.js";
 import { verifyToken } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
