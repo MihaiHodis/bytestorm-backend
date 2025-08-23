@@ -2,61 +2,92 @@ import db from "../config/db.js";
 
 const fieldToSensorType = {
   temp: "temperature",
-  light: "light",
+  humidity: "humidity",
   soil_moisture: "soil_moisture",
 };
 
 export const receiveSensorData = async (req, res) => {
   const { device_uid } = req.params;
-  const payload = (req.body && typeof req.body === "object") ? req.body : {}; // ✅ fallback
+  const payload = (req.body && typeof req.body === "object") ? req.body : {};
 
+  let conn;
   try {
-    // debug optional
-    // console.log("Headers:", req.headers);
-    // console.log("Payload:", payload);
+    conn = await db.getConnection();
+    await conn.beginTransaction();
 
-    const [ctrl] = await db.query(
+    // 1) Confirm DB-ul (debug, temporar)
+    const [[dbMeta]] = await conn.query("SELECT DATABASE() AS db, @@hostname AS host, @@port AS port");
+    console.log("DB target:", dbMeta);
+
+    // 2) Controller
+    const [ctrl] = await conn.query(
       "SELECT id FROM controllers WHERE device_uid = ?",
       [device_uid]
     );
     if (ctrl.length === 0) {
+      await conn.rollback();
       return res.status(404).json({ message: "Controller not found" });
     }
     const controllerId = ctrl[0].id;
 
-    const [sensors] = await db.query(
-      "SELECT id, type FROM sensors WHERE controller_id = ?",
+    // 3) Senzoare pentru controller
+    const [sensors] = await conn.query(
+      "SELECT id, `type` FROM sensors WHERE controller_id = ?",
       [controllerId]
     );
     const sensorIdByType = Object.fromEntries(sensors.map(s => [s.type, s.id]));
+    console.log("Sensor types available:", Object.keys(sensorIdByType));
 
-    const allowedFields = ["temp", "light", "soil_moisture"];
-    const inserts = [];
+    const allowedFields = ["temp", "humidity", "soil_moisture"];
+    const insertedIds = [];
 
     for (const key of allowedFields) {
-      if (!(key in payload)) continue;          // ✅ nu mai explodează
+      if (!(key in payload)) continue;
+
       const val = Number(payload[key]);
       if (!Number.isFinite(val)) continue;
 
       const sensorType = fieldToSensorType[key];
       const sensorId = sensorIdByType[sensorType];
-      if (!sensorId) continue;
+      if (!sensorId) {
+        console.warn(`No sensorId for type=${sensorType} (key=${key})`);
+        continue;
+      }
 
-      inserts.push(
-        db.query("INSERT INTO sensor_readings (sensor_id, value) VALUES (?, ?)", [sensorId, val])
+      // (opțional) validări simple ca să eviți out-of-range
+      if (sensorType === "humidity" && (val < 0 || val > 100)) {
+        console.warn(`Humidity out of range: ${val}`);
+        continue;
+      }
+
+      const [result] = await conn.query(
+        "INSERT INTO sensor_readings (sensor_id, value) VALUES (?, ?)",
+        [sensorId, val]
       );
+      insertedIds.push(result.insertId);
     }
 
-    if (inserts.length === 0) {
+    if (insertedIds.length === 0) {
+      await conn.rollback();
       return res.status(400).json({
-        message: "No valid readings in payload (expected: temp, light, soil_moisture)."
+        message: "No valid readings inserted (expected: temp, humidity, soil_moisture)."
       });
     }
 
-    await Promise.all(inserts);
-    res.status(200).json({ message: "Readings stored", stored: inserts.length });
+    await conn.commit();
+
+    return res.status(200).json({
+      message: "Readings stored",
+      stored: insertedIds.length,
+      ids: insertedIds   // <— vezi exact ce s-a inserat
+    });
   } catch (err) {
     console.error("receiveSensorData error:", err);
-    res.status(500).json({ message: "Server error" });
+    if (conn) {
+      try { await conn.rollback(); } catch {}
+    }
+    return res.status(500).json({ message: "Server error" });
+  } finally {
+    if (conn) conn.release();
   }
 };
