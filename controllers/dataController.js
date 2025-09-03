@@ -1,3 +1,4 @@
+// controllers/dataController.js
 import db from "../config/db.js";
 
 const fieldToSensorType = {
@@ -6,22 +7,34 @@ const fieldToSensorType = {
   soil_moisture: "soil_moisture",
 };
 
+// Acceptă epoch sec/ms sau string ISO; altfel returnează null
+function parseIncomingTimestamp(ts) {
+  if (ts == null) return null;
+  if (Number.isFinite(ts)) {
+    const ms = String(ts).length === 10 ? ts * 1000 : ts;
+    const d = new Date(ms);
+    return Number.isNaN(d.getTime()) ? null : d;
+  }
+  if (typeof ts === "string") {
+    const d = new Date(ts);
+    return Number.isNaN(d.getTime()) ? null : d;
+  }
+  return null;
+}
+
 export const receiveSensorData = async (req, res) => {
   const { device_uid } = req.params;
   const payload = (req.body && typeof req.body === "object") ? req.body : {};
+  const ts = parseIncomingTimestamp(payload.timestamp); // opțional global
 
   let conn;
   try {
     conn = await db.getConnection();
     await conn.beginTransaction();
 
-    // 1) Confirm DB-ul (debug, temporar)
-    const [[dbMeta]] = await conn.query("SELECT DATABASE() AS db, @@hostname AS host, @@port AS port");
-    console.log("DB target:", dbMeta);
-
-    // 2) Controller
+    // 1) Controller (strict pe device_uid)
     const [ctrl] = await conn.query(
-      "SELECT id FROM controllers WHERE device_uid = ?",
+      "SELECT id FROM controllers WHERE device_uid = ? LIMIT 1",
       [device_uid]
     );
     if (ctrl.length === 0) {
@@ -30,14 +43,16 @@ export const receiveSensorData = async (req, res) => {
     }
     const controllerId = ctrl[0].id;
 
-    // 3) Senzoare pentru controller
+    // 2) Senzori pentru controller (folosim exact coloana `type`)
     const [sensors] = await conn.query(
-      "SELECT id, `type` FROM sensors WHERE controller_id = ?",
+      "SELECT id, `type` FROM sensors WHERE controller_id = ? AND (is_active = 1 OR is_active IS NULL)",
       [controllerId]
     );
-    const sensorIdByType = Object.fromEntries(sensors.map(s => [s.type, s.id]));
-    console.log("Sensor types available:", Object.keys(sensorIdByType));
+    const sensorIdByType = Object.fromEntries(
+      sensors.map(s => [String(s.type).toLowerCase(), s.id])
+    );
 
+    // 3) Inserări
     const allowedFields = ["temp", "humidity", "soil_moisture"];
     const insertedIds = [];
 
@@ -47,46 +62,42 @@ export const receiveSensorData = async (req, res) => {
       const val = Number(payload[key]);
       if (!Number.isFinite(val)) continue;
 
-      const sensorType = fieldToSensorType[key];
+      const sensorType = fieldToSensorType[key];   // ex: 'temperature'
       const sensorId = sensorIdByType[sensorType];
-      if (!sensorId) {
-        console.warn(`No sensorId for type=${sensorType} (key=${key})`);
-        continue;
-      }
+      if (!sensorId) continue;
 
-      // (opțional) validări simple ca să eviți out-of-range
-      if (sensorType === "humidity" && (val < 0 || val > 100)) {
-        console.warn(`Humidity out of range: ${val}`);
-        continue;
-      }
+      if (sensorType === "humidity" && (val < 0 || val > 100)) continue;
 
-      const [result] = await conn.query(
-        "INSERT INTO sensor_readings (sensor_id, value) VALUES (?, ?)",
-        [sensorId, val]
-      );
-      insertedIds.push(result.insertId);
+      if (ts) {
+        const [r] = await conn.query(
+          "INSERT INTO sensor_readings (sensor_id, value, recorded_at) VALUES (?, ?, ?)",
+          [sensorId, val, ts]
+        );
+        insertedIds.push(r.insertId);
+      } else {
+        const [r] = await conn.query(
+          "INSERT INTO sensor_readings (sensor_id, value, recorded_at) VALUES (?, ?, NOW())",
+          [sensorId, val]
+        );
+        insertedIds.push(r.insertId);
+      }
     }
 
     if (insertedIds.length === 0) {
       await conn.rollback();
-      return res.status(400).json({
-        message: "No valid readings inserted (expected: temp, humidity, soil_moisture)."
-      });
+      return res.status(400).json({ message: "No valid readings inserted." });
     }
 
     await conn.commit();
-
     return res.status(200).json({
       message: "Readings stored",
       stored: insertedIds.length,
-      ids: insertedIds   // <— vezi exact ce s-a inserat
+      ids: insertedIds,
     });
   } catch (err) {
     console.error("receiveSensorData error:", err);
-    if (conn) {
-      try { await conn.rollback(); } catch {}
-    }
-    return res.status(500).json({ message: "Server error" });
+    if (conn) { try { await conn.rollback(); } catch {} }
+    return res.status(500).json({ message: "Server error", error: String(err?.message || err) });
   } finally {
     if (conn) conn.release();
   }
