@@ -1,3 +1,5 @@
+// ENDPOINT pentru expunerea serelor pentru frontend
+
 import pool from "../config/db.js";
 
 // GET /api/greenhouses

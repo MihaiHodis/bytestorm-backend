@@ -1,3 +1,6 @@
+// ENDPOINT pentru primirea datelor de la senzori (POST /api/sensors/:device_uid) Raspberry Pi
+
+
 // controllers/dataController.js
 import db from "../config/db.js";
 

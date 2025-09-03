@@ -8,6 +8,7 @@ import dataRoutes from "./routes/dataRoutes.js";
 import usersRoutes from "./routes/usersRoutes.js";
 import greenhouseRoutes from "./routes/greenhouseRoutes.js";
 import sensorsRoutes from "./routes/sensorsRoutes.js";
+import getSensorsByGreenhouse from "./routes/sensorsByGreenhouseRoutes.js";
 
 dotenv.config();
 
@@ -24,6 +25,7 @@ app.use("/api/data", dataRoutes);
 app.use("/users", usersRoutes);
 app.use("/greenhouses", greenhouseRoutes);
 app.use("/sensors", sensorsRoutes);
+app.use("/sensors", getSensorsByGreenhouse);
 
 // Server start
 const PORT = process.env.PORT || 5000;

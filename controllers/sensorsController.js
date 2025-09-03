@@ -1,3 +1,5 @@
+// ENDPOINT pentru expunerea senzorilor pentru frontend
+
 import pool from "../config/db.js";
 
 // GET /sensors           -> toate
