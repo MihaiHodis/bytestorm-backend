@@ -14,12 +14,8 @@ export async function listSensors(req, res) {
         s.name,
         s.type,
         s.unit,
-        s.label,
-        s.is_active,
-        s.created_at,
-        -- alias-uri pt. compatibilitate FE (dacă e nevoie)
-        NULL AS value,
-        s.created_at AS updated_at,
+        s.serial_number,
+        s.technical_status,
         c.greenhouse_id
       FROM sensors s
       JOIN controllers c ON c.id = s.controller_id
@@ -32,7 +28,18 @@ export async function listSensors(req, res) {
     const params = gid ? [gid] : [];
     const [rows] = await pool.query(sql, params);
 
-    res.json(rows);
+    // 🔑 Formatăm răspunsul exact cum cere frontend-ul
+    const sensors = rows.map((sensor) => ({
+      id: sensor.id,
+      name: sensor.name,
+      greenhouse_id: sensor.greenhouse_id,
+      type: sensor.type,
+      status: "off", // fallback temporar, dacă vreți putem adăuga coloană în DB
+      serial_number: sensor.serial_number || "nespecificat",
+      technical_status: sensor.technical_status,
+    }));
+
+    res.json(sensors);
   } catch (err) {
     console.error("listSensors error:", err);
     res.status(500).json({ error: "Server error" });
