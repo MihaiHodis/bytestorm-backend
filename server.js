@@ -10,6 +10,7 @@ import greenhouseRoutes from "./routes/greenhouseRoutes.js";
 import sensorsRoutes from "./routes/sensorsRoutes.js";
 import getSensorsByGreenhouse from "./routes/sensorsByGreenhouseRoutes.js";
 import actuatorsRoutes from "./routes/actuatorsRoutes.js";
+import sensorReadingsRoutes from "./routes/sensorReadingsRoutes.js";
 
 dotenv.config();
 
@@ -28,6 +29,7 @@ app.use("/greenhouses", greenhouseRoutes);
 app.use("/sensors", sensorsRoutes);
 app.use("/sensors", getSensorsByGreenhouse);
 app.use("/actuators", actuatorsRoutes);
+app.use("/sensors_readings", sensorReadingsRoutes);
 
 // Server start
 const PORT = process.env.PORT || 5000;
