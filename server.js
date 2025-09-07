@@ -12,6 +12,7 @@ import getSensorsByGreenhouse from "./routes/sensorsByGreenhouseRoutes.js";
 import actuatorsRoutes from "./routes/actuatorsRoutes.js";
 import sensorReadingsRoutes from "./routes/sensorReadingsRoutes.js";
 import outsideWeatherRoutes from "./routes/outsideWeatherRoutes.js";
+import usersDataRoutes from "./routes/usersDataRoutes.js";
 
 dotenv.config();
 
@@ -32,6 +33,7 @@ app.use("/sensors", getSensorsByGreenhouse);
 app.use("/actuators", actuatorsRoutes);
 app.use("/sensors_readings", sensorReadingsRoutes);
 app.use("/outside_weather", outsideWeatherRoutes);
+app.use("/users_data", usersDataRoutes);
 
 // Server start
 const PORT = process.env.PORT || 5000;
