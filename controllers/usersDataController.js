@@ -1,14 +1,12 @@
-// controllers/usersDataController.js
-import pool from '../config/db.js';
+import pool from "../config/db.js";
 
 // GET /users_data
 export async function listUsersData(req, res) {
   try {
     const [rows] = await pool.query(`
-      SELECT id, UID, email, nickname, avatar
+      SELECT id, nickname, avatar
       FROM users_data
     `);
-
     res.json(rows);
   } catch (err) {
     console.error("listUsersData error:", err);
@@ -16,15 +14,15 @@ export async function listUsersData(req, res) {
   }
 }
 
-// GET /users_data/:uid
-export async function getUserDataByUID(req, res) {
+// GET /users_data/:id
+export async function getUserData(req, res) {
   try {
-    const { uid } = req.params;
+    const { id } = req.params;
     const [rows] = await pool.query(
-      `SELECT id, UID, email, nickname, avatar 
+      `SELECT id, nickname, avatar 
        FROM users_data 
-       WHERE UID = ?`,
-      [uid]
+       WHERE id = ?`,
+      [id]
     );
 
     if (rows.length === 0) {
@@ -33,7 +31,31 @@ export async function getUserDataByUID(req, res) {
 
     res.json(rows[0]);
   } catch (err) {
-    console.error("getUserDataByUID error:", err);
+    console.error("getUserData error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+}
+
+// POST /users_data
+export async function createOrUpdateUserData(req, res) {
+  try {
+    const { id, nickname, avatar } = req.body;
+
+    if (!id || !nickname) {
+      return res.status(400).json({ error: "Missing required fields: id, nickname" });
+    }
+
+    // UPSERT: dacă există -> update, altfel -> insert
+    const [result] = await pool.query(
+      `INSERT INTO users_data (id, nickname, avatar)
+       VALUES (?, ?, ?)
+       ON DUPLICATE KEY UPDATE nickname = VALUES(nickname), avatar = VALUES(avatar)`,
+      [id, nickname, avatar]
+    );
+
+    res.status(201).json({ message: "User data saved successfully", id, nickname, avatar });
+  } catch (err) {
+    console.error("createOrUpdateUserData error:", err);
     res.status(500).json({ error: "Internal server error" });
   }
 }
