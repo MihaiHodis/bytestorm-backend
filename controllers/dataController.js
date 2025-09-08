@@ -1,6 +1,3 @@
-// ENDPOINT pentru primirea datelor de la senzori (POST /api/sensors/:device_uid) Raspberry Pi
-
-
 // controllers/dataController.js
 import db from "../config/db.js";
 
@@ -46,16 +43,17 @@ export const receiveSensorData = async (req, res) => {
     }
     const controllerId = ctrl[0].id;
 
-    // 2) Senzori pentru controller (folosim exact coloana `type`)
+    // 2) Selectăm doar senzorii funcționali pentru controller
     const [sensors] = await conn.query(
-      "SELECT id, `type` FROM sensors WHERE controller_id = ? AND (is_active = 1 OR is_active IS NULL)",
+      "SELECT id, `type` FROM sensors WHERE controller_id = ? AND technical_status = 'functional'",
       [controllerId]
     );
+
     const sensorIdByType = Object.fromEntries(
       sensors.map(s => [String(s.type).toLowerCase(), s.id])
     );
 
-    // 3) Inserări
+    // 3) Inserări citiri senzori
     const allowedFields = ["temp", "humidity", "soil_moisture"];
     const insertedIds = [];
 
@@ -73,13 +71,13 @@ export const receiveSensorData = async (req, res) => {
 
       if (ts) {
         const [r] = await conn.query(
-          "INSERT INTO sensor_readings (sensor_id, value, recorded_at) VALUES (?, ?, ?)",
+          "INSERT INTO sensor_readings (sensor_id, value, timestamp) VALUES (?, ?, ?)",
           [sensorId, val, ts]
         );
         insertedIds.push(r.insertId);
       } else {
         const [r] = await conn.query(
-          "INSERT INTO sensor_readings (sensor_id, value, recorded_at) VALUES (?, ?, NOW())",
+          "INSERT INTO sensor_readings (sensor_id, value, timestamp) VALUES (?, ?, NOW())",
           [sensorId, val]
         );
         insertedIds.push(r.insertId);
