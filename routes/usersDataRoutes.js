@@ -1,4 +1,3 @@
-// routes/usersDataRoutes.js
 import { Router } from "express";
 import {
   listUsersData,
@@ -14,7 +13,10 @@ router.get("/", listUsersData);
 // GET date pentru un utilizator după ID
 router.get("/:id", getUserData);
 
-// POST pentru update profil (nickname/avatar)
+// POST pentru update profil (compatibilitate fallback)
 router.post("/:id", updateUserData);
+
+// PATCH pentru update profil (metoda folosită de frontend)
+router.patch("/:id", updateUserData);
 
 export default router;
