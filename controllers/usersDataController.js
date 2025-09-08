@@ -1,3 +1,4 @@
+// controllers/usersDataController.js
 import pool from "../config/db.js";
 
 // GET /users_data
@@ -36,26 +37,38 @@ export async function getUserData(req, res) {
   }
 }
 
-// POST /users_data
-export async function createOrUpdateUserData(req, res) {
+// POST /users_data/:id   (pentru update profil)
+export async function updateUserData(req, res) {
   try {
-    const { id, nickname, avatar } = req.body;
+    const { id } = req.params;
+    const fields = req.body;
 
-    if (!id || !nickname) {
-      return res.status(400).json({ error: "Missing required fields: id, nickname" });
+    if (!id) {
+      return res.status(400).json({ error: "User ID is required" });
     }
 
-    // UPSERT: dacă există -> update, altfel -> insert
+    if (Object.keys(fields).length === 0) {
+      return res.status(400).json({ error: "No fields to update" });
+    }
+
+    // Construim dinamically clauza SET pentru update
+    const setClause = Object.keys(fields)
+      .map(f => `${f} = ?`)
+      .join(", ");
+    const values = [...Object.values(fields), id];
+
     const [result] = await pool.query(
-      `INSERT INTO users_data (id, nickname, avatar)
-       VALUES (?, ?, ?)
-       ON DUPLICATE KEY UPDATE nickname = VALUES(nickname), avatar = VALUES(avatar)`,
-      [id, nickname, avatar]
+      `UPDATE users_data SET ${setClause} WHERE id = ?`,
+      values
     );
 
-    res.status(201).json({ message: "User data saved successfully", id, nickname, avatar });
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: "User data not found" });
+    }
+
+    res.json({ message: "User data updated successfully", id, ...fields });
   } catch (err) {
-    console.error("createOrUpdateUserData error:", err);
+    console.error("updateUserData error:", err);
     res.status(500).json({ error: "Internal server error" });
   }
 }
