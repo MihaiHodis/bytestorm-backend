@@ -1,19 +1,24 @@
-import jwt from "jsonwebtoken";
+// middleware/authMiddleware.js
+import admin from "../config/firebaseAdmin.js";
 
-export const verifyToken = (req, res, next) => {
-  const authHeader = req.headers["authorization"];
-
-  if (!authHeader) {
-    return res.status(401).json({ message: "Access Denied" });
-  }
-
-  const token = authHeader.split(" ")[1];
-
+export const verifyFirebaseToken = async (req, res, next) => {
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = decoded;
+    // Extrage token-ul din header-ul Authorization
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return res.status(401).json({ message: "Missing or invalid Authorization header" });
+    }
+
+    const token = authHeader.split(" ")[1];
+
+    // Verifică token-ul cu Firebase Admin
+    const decodedToken = await admin.auth().verifyIdToken(token);
+
+    // Adaugă info despre utilizator la request pentru a putea fi folosit în endpoint
+    req.user = decodedToken;
     next();
-  } catch (err) {
-    res.status(400).json({ message: "Invalid Token" });
+  } catch (error) {
+    console.error("Token verification failed:", error);
+    return res.status(403).json({ message: "Unauthorized" });
   }
 };

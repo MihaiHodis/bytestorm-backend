@@ -1,16 +1,18 @@
-// ENDPOINT pentru expunerea serelor pentru frontend
+import pool from "../db.js";
 
-import pool from "../config/db.js";
-
-// GET /api/greenhouses
-export async function listGreenhouses(_req, res) {
+export const listGreenhouses = async (req, res) => {
   try {
+    // UID-ul autentificat de Firebase (din middleware)
+    const userUid = req.user.uid;
+
     const [rows] = await pool.query(
-      "SELECT id, name, location, created_at FROM greenhouses"
+      "SELECT * FROM greenhouses WHERE owner_user_id = ?",
+      [userUid]
     );
+
     res.json(rows);
-  } catch (err) {
-    console.error("listGreenhouses error:", err);
-    res.status(500).json({ error: "Server error" });
+  } catch (error) {
+    console.error("Error fetching greenhouses:", error);
+    res.status(500).json({ message: "Server error" });
   }
-}
+};
