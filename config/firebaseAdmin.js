@@ -1,13 +1,17 @@
 // config/firebaseAdmin.js
 import admin from "firebase-admin";
-import dotenv from "dotenv";
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
 
-dotenv.config();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-// 🔑 Cheia de service de la Firebase (se descarcă din Firebase Console > Project Settings > Service Accounts)
-import serviceAccount from "./serviceAccountKey.json" assert { type: "json" };
+// Citește fișierul JSON manual
+const serviceAccount = JSON.parse(
+  fs.readFileSync(path.join(__dirname, "serviceAccountKey.json"), "utf8")
+);
 
-// Inițializează Admin SDK
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
 });

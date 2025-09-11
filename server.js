@@ -2,7 +2,6 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 
-import clientRoutes from "./routes/clientRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
 import dataRoutes from "./routes/dataRoutes.js";
 import usersRoutes from "./routes/usersRoutes.js";
@@ -25,7 +24,6 @@ app.use(cors());
 app.use(express.json());
 
 // Routes
-app.use("/api/clients", clientRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/data", dataRoutes);
 app.use("/users", usersRoutes);
