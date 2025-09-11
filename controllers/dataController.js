@@ -1,4 +1,3 @@
-// controllers/dataController.js
 import db from "../config/db.js";
 
 const fieldToSensorType = {
@@ -22,6 +21,12 @@ function parseIncomingTimestamp(ts) {
   return null;
 }
 
+/**
+ * Endpoint pentru recepția datelor de la device-uri (Raspberry Pico, etc.)
+ * Protejat cu API Key (x-api-key în header).
+ * 
+ * POST /data/:device_uid
+ */
 export const receiveSensorData = async (req, res) => {
   const { device_uid } = req.params;
   const payload = (req.body && typeof req.body === "object") ? req.body : {};
@@ -32,7 +37,7 @@ export const receiveSensorData = async (req, res) => {
     conn = await db.getConnection();
     await conn.beginTransaction();
 
-    // 1) Controller (strict pe device_uid)
+    // 1) Verificăm controller-ul după device_uid
     const [ctrl] = await conn.query(
       "SELECT id FROM controllers WHERE device_uid = ? LIMIT 1",
       [device_uid]
@@ -43,7 +48,7 @@ export const receiveSensorData = async (req, res) => {
     }
     const controllerId = ctrl[0].id;
 
-    // 2) Selectăm doar senzorii funcționali pentru controller
+    // 2) Selectăm senzorii funcționali pentru acest controller
     const [sensors] = await conn.query(
       "SELECT id, `type` FROM sensors WHERE controller_id = ? AND technical_status = 'functional'",
       [controllerId]
@@ -53,7 +58,7 @@ export const receiveSensorData = async (req, res) => {
       sensors.map(s => [String(s.type).toLowerCase(), s.id])
     );
 
-    // 3) Inserări citiri senzori
+    // 3) Inserăm citirile disponibile
     const allowedFields = ["temp", "humidity", "soil_moisture"];
     const insertedIds = [];
 
@@ -67,6 +72,7 @@ export const receiveSensorData = async (req, res) => {
       const sensorId = sensorIdByType[sensorType];
       if (!sensorId) continue;
 
+      // validare simplă pentru humidity
       if (sensorType === "humidity" && (val < 0 || val > 100)) continue;
 
       if (ts) {

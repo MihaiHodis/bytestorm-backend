@@ -1,13 +1,11 @@
-// ENDPOINT pentru expunerea senzorilor pentru frontend
-
 import pool from "../config/db.js";
 
-// GET /sensors           -> toate
-// GET /sensors?greenhouse_id=1
 export async function listSensors(req, res) {
   const gid = req.query.greenhouse_id ? Number(req.query.greenhouse_id) : null;
 
   try {
+    const userUid = req.user.uid; // UID din token
+
     const baseSelect = `
       SELECT
         s.id,
@@ -19,13 +17,15 @@ export async function listSensors(req, res) {
         c.greenhouse_id
       FROM sensors s
       JOIN controllers c ON c.id = s.controller_id
+      JOIN greenhouses g ON g.id = c.greenhouse_id
+      WHERE g.owner_user_id = ?
     `;
 
     const sql = gid
-      ? `${baseSelect} WHERE c.greenhouse_id = ? ORDER BY s.id ASC`
+      ? `${baseSelect} AND c.greenhouse_id = ? ORDER BY s.id ASC`
       : `${baseSelect} ORDER BY s.id ASC`;
 
-    const params = gid ? [gid] : [];
+    const params = gid ? [userUid, gid] : [userUid];
     const [rows] = await pool.query(sql, params);
 
     // 🔑 Formatăm răspunsul exact cum cere frontend-ul
@@ -34,7 +34,7 @@ export async function listSensors(req, res) {
       name: sensor.name,
       greenhouse_id: sensor.greenhouse_id,
       type: sensor.type,
-      status: "off", // fallback temporar, dacă vreți putem adăuga coloană în DB
+      status: "off", // fallback temporar
       serial_number: sensor.serial_number || "nespecificat",
       technical_status: sensor.technical_status,
     }));
