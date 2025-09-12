@@ -1,5 +1,5 @@
 import db from "../config/db.js";
-
+// endpoint pentru comenzi venite de la hardware (Raspberry Pico, etc.)
 const fieldToSensorType = {
   temp: "temperature",
   humidity: "humidity",

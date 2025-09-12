@@ -14,6 +14,7 @@ import sensorReadingsRoutes from "./routes/sensorReadingsRoutes.js";
 import outsideWeatherRoutes from "./routes/outsideWeatherRoutes.js";
 import usersDataRoutes from "./routes/usersDataRoutes.js";
 import contactsRoutes from "./routes/contactsRoutes.js";
+import deviceRoutes from "./routes/deviceRoutes.js";
 
 dotenv.config();
 
@@ -36,6 +37,8 @@ app.use("/sensors_readings", sensorReadingsRoutes);
 app.use("/outside_weather", outsideWeatherRoutes);
 app.use("/users_data", usersDataRoutes);
 app.use("/contacts", contactsRoutes);
+app.use("/device/commands", deviceRoutes);
+
 
 // Server start
 const PORT = process.env.PORT || 5000;
