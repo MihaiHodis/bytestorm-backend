@@ -4,15 +4,16 @@ import {
   getContactById,
   createContact,
   updateContact,
-  deleteContact
+  deleteContact,
 } from "../controllers/contactsController.js";
+import { verifyFirebaseToken } from "../middleware/authMiddleware.js";
 
 const router = Router();
 
-router.get("/", listContacts);
-router.get("/:id", getContactById);
-router.post("/", createContact);
-router.patch("/:id", updateContact);
-router.delete("/:id", deleteContact);
+router.get("/", verifyFirebaseToken, listContacts);
+router.get("/:id", verifyFirebaseToken, getContactById);
+router.post("/", verifyFirebaseToken, createContact);
+router.patch("/:id", verifyFirebaseToken, updateContact);
+router.delete("/:id", verifyFirebaseToken, deleteContact);
 
 export default router;
