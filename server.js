@@ -35,7 +35,7 @@ app.use("/sensors_readings", sensorReadingsRoutes);
 app.use("/outside_weather", outsideWeatherRoutes);
 app.use("/users_data", usersDataRoutes);
 app.use("/contacts", contactsRoutes);
-app.use("/device/commands", deviceRoutes);
+app.use("/", deviceRoutes);
 
 
 // Server start

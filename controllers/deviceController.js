@@ -1,49 +1,38 @@
 import pool from "../config/db.js";
 
-// Endpoint pentru comenzi venite de la hardware
-export async function createDeviceCommand(req, res) {
+// returnează ultimele comenzi pentru actuatoare sub forma { pump: bool, fan: bool }
+export async function getDeviceCommands(req, res) {
   try {
-    const { actuator_id, command } = req.body;
+    const { device_uid } = req.params;
 
-    if (!actuator_id || !command) {
-      return res.status(400).json({
-        error: "Missing required fields: actuator_id, command",
-      });
+    // Verificăm controller-ul după device_uid
+    const [ctrl] = await pool.query(
+      "SELECT id FROM controllers WHERE device_uid = ? LIMIT 1",
+      [device_uid]
+    );
+    if (ctrl.length === 0) {
+      return res.status(404).json({ error: "Controller not found" });
     }
+    const controllerId = ctrl[0].id;
 
-    // Verificăm că actuatorul există și e funcțional
-    const [check] = await pool.query(
-      "SELECT id FROM actuators WHERE id = ? AND technical_status = 'functional'",
-      [actuator_id]
+    // Luăm actuatoarele asociate controllerului
+    const [rows] = await pool.query(
+      `SELECT a.type, a.status 
+       FROM actuators a
+       WHERE a.controller_id = ?`,
+      [controllerId]
     );
 
-    if (check.length === 0) {
-      return res.status(404).json({ error: "Actuator not found or not functional" });
+    // Transformăm în răspuns { pump: bool, fan: bool }
+    const response = {};
+    for (const r of rows) {
+      if (r.type === "pump") response.pump = r.status === "on";
+      if (r.type === "fan") response.fan = r.status === "on";
     }
 
-    // Inserăm comanda (user-ul este "device")
-    const [result] = await pool.query(
-      `INSERT INTO actuator_commands 
-       (actuator_id, command, issued_by_user_id, issued_at)
-       VALUES (?, ?, ?, NOW())`,
-      [actuator_id, command, "DEVICE_API"]
-    );
-
-    // Actualizăm status-ul actuatorului
-    await pool.query("UPDATE actuators SET status = ? WHERE id = ?", [
-      command === "on" ? "on" : "off",
-      actuator_id,
-    ]);
-
-    res.status(201).json({
-      id: result.insertId,
-      actuator_id,
-      command,
-      issued_by: "device",
-      issued_at: new Date(),
-    });
+    res.json(response);
   } catch (err) {
-    console.error("createDeviceCommand error:", err);
-    res.status(500).json({ error: "Internal server error" });
+    console.error("getDeviceCommands error:", err);
+    res.status(500).json({ error: "Server error" });
   }
 }

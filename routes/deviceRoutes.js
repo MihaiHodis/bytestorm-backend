@@ -1,10 +1,10 @@
 import { Router } from "express";
-import { createDeviceCommand } from "../controllers/deviceController.js";
+import { getDeviceCommands } from "../controllers/deviceController.js";
 import { verifyDeviceKey } from "../middleware/deviceAuth.js";
 
 const router = Router();
 
-// Endpoint pentru device (Pico)
-router.post("/", verifyDeviceKey, createDeviceCommand);
+// GET comenzi actuatoare pentru Pico
+router.get("/api/data/:device_uid/commands", verifyDeviceKey, getDeviceCommands);
 
 export default router;
