@@ -34,6 +34,7 @@ export async function listSensors(req, res) {
       name: sensor.name,
       greenhouse_id: sensor.greenhouse_id,
       type: sensor.type,
+      unit: sensor.unit || "", // trimitem și unit
       status: "off", // fallback temporar
       serial_number: sensor.serial_number || "nespecificat",
       technical_status: sensor.technical_status,
