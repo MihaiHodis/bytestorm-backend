@@ -72,7 +72,7 @@ export async function listActuatorCommands(req, res) {
 // ================================
 export async function createActuatorCommand(req, res) {
   try {
-    const { actuator_id, command, level, duration_minutes, greenhouse_id } = req.body;
+    const { actuator_id, command, level, duration_minutes, greenhouse_id, expires_at: payloadExpires } = req.body;
     const userUid = req.user.uid;
 
     if (!actuator_id || !command) {
@@ -102,9 +102,12 @@ export async function createActuatorCommand(req, res) {
       return res.status(403).json({ error: "Unauthorized actuator access" });
     }
 
-    // Calculează expires_at dacă se trimite duration_minutes
+    // Calculează expires_at
     let expires_at = null;
-    if (command === "on" && duration_minutes && !isNaN(duration_minutes)) {
+    if (payloadExpires) {
+      // dacă frontend trimite direct expires_at (ex: "2025-09-12 18:30:00")
+      expires_at = new Date(payloadExpires);
+    } else if (command === "on" && duration_minutes && !isNaN(duration_minutes)) {
       const [exp] = await pool.query("SELECT NOW() + INTERVAL ? MINUTE AS exp", [
         duration_minutes,
       ]);
