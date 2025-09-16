@@ -14,6 +14,7 @@ import outsideWeatherRoutes from "./routes/outsideWeatherRoutes.js";
 import usersDataRoutes from "./routes/usersDataRoutes.js";
 import contactsRoutes from "./routes/contactsRoutes.js";
 import deviceRoutes from "./routes/deviceRoutes.js";
+import actuatorSchedulesRoutes from "./routes/actuatorSchedulesRoutes.js";
 
 dotenv.config();
 
@@ -36,6 +37,7 @@ app.use("/outside_weather", outsideWeatherRoutes);
 app.use("/users_data", usersDataRoutes);
 app.use("/contacts", contactsRoutes);
 app.use("/", deviceRoutes);
+app.use("/actuator_schedules", actuatorSchedulesRoutes);
 
 
 // Server start
