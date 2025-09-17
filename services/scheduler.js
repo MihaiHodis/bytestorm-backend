@@ -2,16 +2,6 @@
 import pool from "../config/db.js";
 
 /**
- * Helper: formatează un obiect Date sau string într-un format YYYY-MM-DD
- */
-function formatDateOnly(dateVal) {
-  if (dateVal instanceof Date) {
-    return dateVal.toISOString().slice(0, 10);
-  }
-  return String(dateVal);
-}
-
-/**
  * Scheduler per actuator:
  * - Iterează toate actuatoarele
  * - Verifică dacă există programare activă acum
@@ -32,7 +22,10 @@ export async function runScheduler() {
       // 2️⃣ Verifică dacă are programări active acum (cu marjă 1 minut)
       const [activeSchedules] = await pool.query(
         `
-        SELECT * FROM actuator_schedules
+        SELECT id, actuator_id, greenhouse_id,
+               DATE_FORMAT(schedule_date, '%Y-%m-%d') AS schedule_date,
+               start_time, end_time, issued_by_user_id
+        FROM actuator_schedules
         WHERE actuator_id = ?
           AND schedule_date = ?
           AND start_time <= ADDTIME(?, '00:01:00')
@@ -61,9 +54,13 @@ export async function runScheduler() {
       // ======================
       if (hasActiveSchedule) {
         const schedule = activeSchedules[0]; // programarea cu end_time cel mai mare
-        const scheduleDate = formatDateOnly(schedule.schedule_date);
-        const scheduleExpiresAt = new Date(`${scheduleDate} ${schedule.end_time}`);
-        const expiresAtStr = `${scheduleDate} ${schedule.end_time}`;
+        const scheduleDate = schedule.schedule_date; // acum e garantat string
+        const expiresAtStr = `${scheduleDate} ${schedule.end_time}`; // format SQL valid
+
+        // Debug
+        console.log(
+          `📝 DEBUG actuator ${actuatorId} -> expiresAtStr = "${expiresAtStr}"`
+        );
 
         let shouldTurnOn = false;
 
@@ -72,7 +69,7 @@ export async function runScheduler() {
         } else if (
           lastCmd.command === "on" &&
           lastCmd.expires_at &&
-          new Date(lastCmd.expires_at).getTime() === scheduleExpiresAt.getTime()
+          new Date(lastCmd.expires_at).getTime() === new Date(expiresAtStr).getTime()
         ) {
           shouldTurnOn = false; // deja există ON exact pentru acest schedule
         } else if (
@@ -81,7 +78,7 @@ export async function runScheduler() {
           new Date(lastCmd.expires_at) > now
         ) {
           // dacă expirarea curentă este mai mică decât programarea activă → prelungim
-          if (new Date(lastCmd.expires_at) < scheduleExpiresAt) {
+          if (new Date(lastCmd.expires_at) < new Date(expiresAtStr)) {
             await pool.query(
               `UPDATE actuator_commands SET expires_at = ? WHERE id = ?`,
               [expiresAtStr, lastCmd.id]
