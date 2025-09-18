@@ -54,10 +54,9 @@ export async function runScheduler() {
       // ======================
       if (hasActiveSchedule) {
         const schedule = activeSchedules[0]; // programarea cu end_time cel mai mare
-        const scheduleDate = schedule.schedule_date; // acum e garantat string
-        const expiresAtStr = `${scheduleDate} ${schedule.end_time}`; // format SQL valid
+        const scheduleDate = schedule.schedule_date; // string
+        const expiresAtStr = `${scheduleDate} ${schedule.end_time}`; // SQL format
 
-        // Debug
         console.log(
           `📝 DEBUG actuator ${actuatorId} -> expiresAtStr = "${expiresAtStr}"`
         );
@@ -127,24 +126,44 @@ export async function runScheduler() {
       }
 
       // ======================
-      // 🔹 CAZ 2: nu există programare activă → trebuie OFF
+      // 🔹 CAZ 2: nu există programare activă
       // ======================
       if (lastCmd && lastCmd.command === "on") {
-        await pool.query(
-          `
-          INSERT INTO actuator_commands (actuator_id, command, issued_by_user_id, issued_at)
-          VALUES (?, 'off', 'system_cron', NOW())
-          `,
-          [actuatorId]
-        );
-
-        await pool.query(`UPDATE actuators SET status = 'off' WHERE id = ?`, [
-          actuatorId,
-        ]);
-
-        console.log(
-          `🛑 Actuator ${actuatorId} oprit (nu mai are programare activă)`
-        );
+        if (lastCmd.issued_by_user_id === "system_cron") {
+          // OFF doar dacă ultima a fost de la cron
+          await pool.query(
+            `INSERT INTO actuator_commands (actuator_id, command, issued_by_user_id, issued_at)
+             VALUES (?, 'off', 'system_cron', NOW())`,
+            [actuatorId]
+          );
+          await pool.query(`UPDATE actuators SET status = 'off' WHERE id = ?`, [
+            actuatorId,
+          ]);
+          console.log(
+            `🛑 Actuator ${actuatorId} oprit (nu mai are programare activă)`
+          );
+        } else {
+          // ultima comandă a fost de la user
+          if (lastCmd.expires_at && new Date(lastCmd.expires_at) <= now) {
+            // expirată → cron face OFF
+            await pool.query(
+              `INSERT INTO actuator_commands (actuator_id, command, issued_by_user_id, issued_at)
+               VALUES (?, 'off', 'system_cron', NOW())`,
+              [actuatorId]
+            );
+            await pool.query(`UPDATE actuators SET status = 'off' WHERE id = ?`, [
+              actuatorId,
+            ]);
+            console.log(
+              `🛑 Actuator ${actuatorId} oprit (comandă manuală expirat la ${lastCmd.expires_at})`
+            );
+          } else {
+            // activă încă → nu facem nimic
+            console.log(
+              `⏭️ Actuator ${actuatorId} rămâne ON (comandă manuală activă până la ${lastCmd.expires_at || "∞"})`
+            );
+          }
+        }
       }
     }
   } catch (err) {

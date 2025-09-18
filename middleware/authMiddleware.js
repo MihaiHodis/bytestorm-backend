@@ -13,7 +13,7 @@ export const verifyFirebaseToken = async (req, res, next) => {
 
     // Verifică token-ul cu Firebase Admin
     const decodedToken = await admin.auth().verifyIdToken(token);
-    console.log("Decoded UID:", decodedToken.uid);
+    //console.log("Decoded UID:", decodedToken.uid);
 
 
     // Adaugă info despre utilizator la request pentru a putea fi folosit în endpoint
